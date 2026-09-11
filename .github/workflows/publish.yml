@@ -27,13 +27,24 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: 從 Drive 抓到期任務的媒體
+      - name: 從 Drive 抓到期任務的原圖
         env:
           MANIFEST_FILE_ID: ${{ vars.MANIFEST_FILE_ID }}
           MEDIA_BASE_URL: ${{ vars.MEDIA_BASE_URL }}
         run: python publish.py fetch
 
-      - name: 把媒體 commit 進 repo
+      - name: 安裝算圖需要的字型與工具
+        if: hashFiles('.pending.json') != ''
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk fonts-dejavu-core ffmpeg
+          pip install --quiet Pillow
+
+      - name: 算圖卡與 Reels
+        if: hashFiles('.pending.json') != ''
+        run: python render.py .pending.json
+
+      - name: 把成品 commit 進 repo
         run: |
           if [ ! -f .pending.json ]; then
             echo "沒有待發任務，結束。"
@@ -43,9 +54,9 @@ jobs:
           git config user.email "bot@users.noreply.github.com"
           git add media published 2>/dev/null || true
           if git diff --cached --quiet; then
-            echo "沒有新媒體需要 commit。"
+            echo "沒有新成品需要 commit。"
           else
-            git commit -m "media: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git commit -m "render: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             git push
           fi
 
