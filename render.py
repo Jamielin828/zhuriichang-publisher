@@ -448,6 +448,17 @@ def render_job(job):
         ig.setdefault("type", "carousel")
         ig["images"] = [{"name": m, "rendered": True} for m in made]
 
+        # Threads 也要有圖。沒有特別指定的話，就跟 IG 用同一批卡。
+        # threads.render_images：all（預設）／first（只放封面）／none（純文字）
+        th = job.get("threads")
+        if th is not None and not th.get("images"):
+            mode = th.get("render_images", "all")
+            pick = [] if mode == "none" else (made[:1] if mode == "first" else made[:20])
+            if pick:
+                th["images"] = [{"name": m, "rendered": True} for m in pick]
+                th["type"] = "carousel" if len(pick) > 1 else "image"
+                print("  Threads 帶 %d 張圖" % len(pick))
+
     reels = spec.get("reels")
     if reels and reels.get("frames"):
         out = os.path.join(outdir, "reels.mp4")
