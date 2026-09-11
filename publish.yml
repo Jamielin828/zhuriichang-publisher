@@ -1,0 +1,77 @@
+name: 築日常自動發布
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 只驗證不發文
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 從 Drive 抓到期任務的媒體
+        env:
+          MANIFEST_FILE_ID: ${{ vars.MANIFEST_FILE_ID }}
+          MEDIA_BASE_URL: ${{ vars.MEDIA_BASE_URL }}
+        run: python publish.py fetch
+
+      - name: 把媒體 commit 進 repo
+        run: |
+          if [ ! -f .pending.json ]; then
+            echo "沒有待發任務，結束。"
+            exit 0
+          fi
+          git config user.name  "zhuriichang-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add media published 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "沒有新媒體需要 commit。"
+          else
+            git commit -m "media: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git push
+          fi
+
+      - name: 發布
+        if: hashFiles('.pending.json') != ''
+        env:
+          MANIFEST_FILE_ID: ${{ vars.MANIFEST_FILE_ID }}
+          MEDIA_BASE_URL: ${{ vars.MEDIA_BASE_URL }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          TH_USER_ID: ${{ secrets.TH_USER_ID }}
+          TH_TOKEN: ${{ secrets.TH_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: python publish.py post
+
+      - name: 回寫發布紀錄
+        if: always()
+        run: |
+          git config user.name  "zhuriichang-bot"
+          git config user.email "bot@users.noreply.github.com"
+          rm -f .pending.json
+          git add published 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "沒有新紀錄。"
+          else
+            git commit -m "log: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git pull --rebase --autostash || true
+            git push
+          fi

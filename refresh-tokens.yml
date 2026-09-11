@@ -1,0 +1,38 @@
+name: 更新 Meta 長效 token
+
+on:
+  schedule:
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 續 Instagram token
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+        run: |
+          if [ -z "$IG_TOKEN" ]; then echo "沒有 IG_TOKEN，跳過。"; exit 0; fi
+          NEW=$(curl -sS -G "https://graph.instagram.com/refresh_access_token" \
+                --data-urlencode "grant_type=ig_refresh_token" \
+                --data-urlencode "access_token=$IG_TOKEN" \
+                | python3 -c "import sys,json;print(json.load(sys.stdin).get('access_token',''))")
+          if [ -z "$NEW" ]; then echo "IG token 續期失敗，可能已超過 60 天，需要重新授權。"; exit 1; fi
+          echo "$NEW" | gh secret set IG_TOKEN --repo "$GITHUB_REPOSITORY"
+          echo "IG token 已更新。"
+
+      - name: 續 Threads token
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          TH_TOKEN: ${{ secrets.TH_TOKEN }}
+        run: |
+          if [ -z "$TH_TOKEN" ]; then echo "沒有 TH_TOKEN，跳過。"; exit 0; fi
+          NEW=$(curl -sS -G "https://graph.threads.net/refresh_access_token" \
+                --data-urlencode "grant_type=th_refresh_token" \
+                --data-urlencode "access_token=$TH_TOKEN" \
+                | python3 -c "import sys,json;print(json.load(sys.stdin).get('access_token',''))")
+          if [ -z "$NEW" ]; then echo "Threads token 續期失敗，需要重新授權。"; exit 1; fi
+          echo "$NEW" | gh secret set TH_TOKEN --repo "$GITHUB_REPOSITORY"
+          echo "Threads token 已更新。"
