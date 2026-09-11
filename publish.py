@@ -48,6 +48,7 @@ MAX_ATTEMPTS = 3
 PENDING = ".pending.json"
 LOG = "published/log.jsonl"
 MEDIA_DIR = "media"
+SOURCE_DIR = "source"
 
 DRY = os.environ.get("DRY_RUN") == "1"
 
@@ -168,35 +169,53 @@ def cmd_fetch():
     already = done_ids()
     picked = []
 
+    # 兩段式：還沒算圖的先算（不管核不核准，讓人看得到成品再決定）；
+    # 已核准且到期的才會真的送出。
     for job in jobs:
         jid = job.get("id") or "(無 id)"
         if jid in already:
             continue
+
+        rendered = os.path.isdir(os.path.join(MEDIA_DIR, jid)) and \
+            os.listdir(os.path.join(MEDIA_DIR, jid))
+        needs_render = bool(job.get("render")) and not rendered
+
+        can_post = True
         if not job.get("approved"):
-            print("跳過 %s（尚未核准）" % jid)
-            continue
-        if not is_due(job, now):
-            print("跳過 %s（尚未到 %s）" % (jid, job.get("publish_at")))
-            continue
-        if is_stale(job, now):
+            can_post = False
+            if not needs_render:
+                print("跳過 %s（尚未核准，成品已算好等你看）" % jid)
+                continue
+        elif not is_due(job, now):
+            can_post = False
+            if not needs_render:
+                print("跳過 %s（尚未到 %s）" % (jid, job.get("publish_at")))
+                continue
+        elif is_stale(job, now):
             print("跳過 %s（逾時超過 %d 小時，標為 stale）"
                   % (jid, job.get("max_late_hours", MAX_LATE_HOURS)))
             write_log({"id": jid, "status": "stale",
                        "publish_at": job.get("publish_at")})
             continue
+
+        job["_post"] = can_post
+        print("處理 %s（%s）" % (jid, "算圖並發布" if can_post else "只算圖，不發布"))
         picked.append(job)
 
     if not picked:
-        print("沒有到期且已核准的任務。")
+        print("沒有需要算圖或發布的任務。")
         if os.path.exists(PENDING):
             os.remove(PENDING)
         return
 
     for job in picked:
         jid = job["id"]
-        os.makedirs(os.path.join(MEDIA_DIR, jid), exist_ok=True)
+        render = job.get("render")
+        # 有 render 規格的，下載的是「原圖」放進 source/；成品由 render.py 算出來放進 media/
+        base = os.path.join(SOURCE_DIR if render else MEDIA_DIR, jid)
+        os.makedirs(base, exist_ok=True)
         for item in media_items(job):
-            path = rel_media_path(jid, item["name"])
+            path = os.path.join(base, item["name"])
             if os.path.exists(path) and os.path.getsize(path) > 0:
                 print("  已有 %s" % path)
                 continue
@@ -212,17 +231,23 @@ def cmd_fetch():
 
 
 def media_items(job):
-    """把一個任務裡所有需要下載的媒體列出來。"""
+    """把一個任務裡所有需要從 Drive 下載的檔案列出來。
+
+    有 render 規格時，要下載的是 render.sources 裡的原圖；
+    沒有的話，就是 instagram / threads 直接指定的成品。
+    只回傳帶 drive_id 的項目——rendered 的檔案是算出來的，不用下載。
+    """
+    render = job.get("render")
+    if render:
+        return [s for s in render.get("sources", []) if s.get("drive_id")]
     out = []
     ig = job.get("instagram") or {}
-    for img in ig.get("images", []):
-        out.append(img)
+    out.extend(ig.get("images", []))
     if ig.get("video"):
         out.append(ig["video"])
     th = job.get("threads") or {}
-    for img in th.get("images", []):
-        out.append(img)
-    return out
+    out.extend(th.get("images", []))
+    return [i for i in out if i.get("drive_id")]
 
 
 # ------------------------------------------------------------------ 網址
@@ -423,9 +448,13 @@ def cmd_post():
     with open(PENDING, encoding="utf-8") as f:
         jobs = json.load(f).get("jobs", [])
 
-    ok = fail = 0
+    ok = fail = skipped = 0
     for job in jobs:
         jid = job["id"]
+        if not job.get("_post"):
+            print("%s：只算圖，不發布（成品已 commit，等你核准）" % jid)
+            skipped += 1
+            continue
         print("處理 %s" % jid)
         results = {}
         try:
@@ -455,7 +484,7 @@ def cmd_post():
                        "platforms": job.get("platforms"),
                        "results": {k: (v or {}).get("id") for k, v in results.items()}})
 
-    print("完成 %d 則，失敗 %d 則。" % (ok, fail))
+    print("發布 %d 則，失敗 %d 則，待核准 %d 則。" % (ok, fail, skipped))
     return 1 if fail and not ok else 0
 
 
