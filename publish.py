@@ -20,7 +20,7 @@ GitHub Actions 對自己的 repo 有寫入權，所以由它把圖片 commit 進
     MEDIA_BASE_URL     https://raw.githubusercontent.com/<user>/<repo>/main/
     IG_USER_ID         Instagram 專業帳號 user id
     IG_TOKEN           Instagram 長效 access token
-    TH_USER_ID         Threads user id（選填）
+    TH_USER_ID         Threads user id（選填，沒填就用 token 自動問出來）
     TH_TOKEN           Threads 長效 access token（選填）
     DRY_RUN=1          只驗證不發文
 """
@@ -105,22 +105,43 @@ def is_stale(job, now):
     return now > when_of(job) + timedelta(hours=late)
 
 
-def done_ids():
-    ids = set()
+def _log_records():
     if not os.path.exists(LOG):
-        return ids
+        return []
+    out = []
     with open(LOG, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
             try:
-                rec = json.loads(line)
+                out.append(json.loads(line))
             except ValueError:
                 continue
-            if rec.get("status") in ("published", "stale", "abandoned"):
-                ids.add(rec.get("id"))
-    return ids
+    return out
+
+
+def done_ids():
+    """整則已經結案的 id：全部平台發完、或標為 stale／放棄。"""
+    return {r.get("id") for r in _log_records()
+            if r.get("status") in ("published", "stale", "abandoned")}
+
+
+def done_platforms(jid):
+    """這一則已經成功發出去的平台。
+
+    重要：IG 發成功但 Threads 失敗時，整則會重試。沒有這層紀錄的話，
+    重試會把 IG 再發一次，變成重複貼文。
+    """
+    done = set()
+    for r in _log_records():
+        if r.get("id") != jid:
+            continue
+        if r.get("status") == "platform_published" and r.get("platform"):
+            done.add(r["platform"])
+        elif r.get("status") == "published":
+            done.update(r.get("platforms") or [])
+    return done
 
 
 def write_log(rec):
@@ -377,6 +398,20 @@ def th(path, params, method="POST"):
     return http(url, data=params)
 
 
+def th_me_id():
+    """沒有 TH_USER_ID 時，直接用 token 問出帳號編號。
+
+    token 本身就代表那個帳號，所以這個值是可以推導的，不必人工填。
+    """
+    if not hasattr(th_me_id, "_cached"):
+        me = th("me", {"fields": "id,username"}, method="GET")
+        th_me_id._cached = me.get("id")
+        print("  Threads 帳號：%s（%s）" % (me.get("username"), me.get("id")))
+    if not th_me_id._cached:
+        raise PublishError("問不到 Threads 帳號編號，token 可能無效。")
+    return th_me_id._cached
+
+
 def th_wait(container_id, tries=20, delay=5):
     for _ in range(tries):
         r = th(container_id, {"fields": "status,error_message"}, method="GET")
@@ -392,7 +427,7 @@ def th_wait(container_id, tries=20, delay=5):
 
 def publish_threads(job):
     spec = job["threads"]
-    uid = need("TH_USER_ID")
+    uid = os.environ.get("TH_USER_ID") or th_me_id()
     jid = job["id"]
     text = spec.get("text", "")
     if len(text) > TH_TEXT_MAX:
@@ -430,9 +465,10 @@ def publish_threads(job):
     return res
 
 
+# TH_USER_ID 是選填的：沒填就用 token 問出來。
 NEEDED_ENV = {
     "instagram": ("IG_USER_ID", "IG_TOKEN"),
-    "threads": ("TH_USER_ID", "TH_TOKEN"),
+    "threads": ("TH_TOKEN",),
 }
 
 
@@ -457,17 +493,28 @@ def cmd_post():
             continue
         print("處理 %s" % jid)
         results = {}
+        already_sent = done_platforms(jid)
+        if already_sent:
+            print("  已發過：%s（不再重發）" % "、".join(sorted(already_sent)))
         try:
             for platform in job.get("platforms", []):
+                if platform in already_sent:
+                    continue
                 gap = missing_env(platform)
                 if gap:
                     raise PublishError("%s 缺少 %s" % (platform, "、".join(gap)))
                 if platform == "instagram":
-                    results["instagram"] = publish_instagram(job)
+                    res = publish_instagram(job)
                 elif platform == "threads":
-                    results["threads"] = publish_threads(job)
+                    res = publish_threads(job)
                 else:
                     raise PublishError("不認識的平台：%s" % platform)
+                results[platform] = res
+                if not DRY:
+                    # 每發成功一個平台就立刻記一筆，後面失敗也不會重發這個
+                    write_log({"id": jid, "status": "platform_published",
+                               "platform": platform,
+                               "post_id": (res or {}).get("id")})
         except PublishError as e:
             fail += 1
             print("  失敗：%s" % e)
