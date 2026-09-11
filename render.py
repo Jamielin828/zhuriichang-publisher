@@ -174,20 +174,29 @@ def tracked(d, xy, text, f, fill, tracking):
     return x
 
 
-def draw_place(im, place, size=20, tracking=2):
-    """右下角的地點標。只有查得到地點才傳進來，查不到就不要標。"""
+def draw_place(im, place, size=19, tracking=2, bottom=None):
+    """右下角的地點標，格式為　location- 京都五重塔。
+
+    只有查得到地點才傳進來，查不到就不要標——圖上標錯地點比留白嚴重。
+    """
     if not place:
         return im
     w, h = im.size
     d = ImageDraw.Draw(im)
-    f = font("sans", size)
-    width = sum(f.getlength(c) + tracking for c in place) - tracking
-    x = w - MARGIN - width
-    y = h - 58 if h == POST_H else h - 76
+    lf = font("sans", size - 2)
+    pf = font("sans", size)
+    label = "location-"
+    lw = sum(lf.getlength(c) + tracking for c in label) - tracking
+    pw = sum(pf.getlength(c) + tracking for c in place) - tracking
+    gap = 10
+    x = w - MARGIN - lw - gap - pw
+    y = (bottom if bottom is not None else (h - 58 if h == POST_H else h - 76))
     # 先描一層暗影，壓在亮處也讀得到
     for dx, dy in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
-        tracked(d, (x + dx, y + dy), place, f, (18, 16, 14), tracking)
-    tracked(d, (x, y), place, f, (178, 172, 160), tracking)
+        tracked(d, (x + dx, y + dy), label, lf, (18, 16, 14), tracking)
+        tracked(d, (x + lw + gap + dx, y + dy), place, pf, (18, 16, 14), tracking)
+    tracked(d, (x, y), label, lf, PAL["gold_lt"], tracking)
+    tracked(d, (x + lw + gap, y), place, pf, (190, 184, 172), tracking)
     return im
 
 
@@ -256,6 +265,68 @@ def card_photo(src, spec, size=(POST_W, POST_H)):
     return im
 
 
+def card_split(src, spec, size=(POST_W, POST_H)):
+    """上半是照片與說明，下半是今日一句。
+
+    使用者要的第二頁：照片不只是配圖，要帶一段介紹；名言收在最下面。
+    """
+    w, h = size
+    ratio = spec.get("photo_ratio", 0.46)
+    ph = int(h * ratio)
+
+    im = Image.new("RGB", (w, h), PAL["ink"])
+    photo = fit_crop(Image.open(src), w, ph, spec.get("focus"))
+    photo = scrim(photo, spec.get("scrim", 0.35), "bottom")
+    im.paste(photo, (0, 0))
+    draw_place(im, spec.get("place"), bottom=ph - 40)
+
+    d = ImageDraw.Draw(im)
+    y = ph + 54
+
+    if spec.get("intro_title"):
+        f = font("serif", spec.get("intro_title_size", 40))
+        lines = wrap_cjk(spec["intro_title"], f, w - MARGIN * 2)
+        lead = int(spec.get("intro_title_size", 40) * 1.5)
+        y = draw_lines(d, (MARGIN, y), lines, f, PAL["mist"], lead)
+        y += 18
+
+    if spec.get("intro"):
+        f = font("sans", spec.get("intro_size", 25))
+        lines = wrap_cjk(spec["intro"], f, w - MARGIN * 2)
+        lead = int(spec.get("intro_size", 25) * 1.88)
+        y = draw_lines(d, (MARGIN, y), lines, f, (176, 170, 158), lead)
+
+    # 今日一句：貼著底部排
+    blocks = []
+    if spec.get("zh"):
+        zf = font("serif", spec.get("quote_size", 40))
+        blocks.append(("zh", wrap_cjk(spec["zh"], zf, w - MARGIN * 2),
+                       zf, PAL["mist"], int(spec.get("quote_size", 40) * 1.6), 0))
+    if spec.get("en"):
+        ef = font("sans", 22)
+        blocks.append(("en", wrap_cjk(spec["en"], ef, w - MARGIN * 2),
+                       ef, (142, 137, 128), int(22 * 1.7), 20))
+    if spec.get("by"):
+        bf = font("sans", 22)
+        blocks.append(("by", wrap_cjk(spec["by"], bf, w - MARGIN * 2),
+                       bf, (182, 176, 164), int(22 * 1.7), 26))
+
+    note_h = 34 if spec.get("note") else 0
+    total = sum(len(b[1]) * b[4] + b[5] for b in blocks)
+    qy = h - MARGIN - note_h - total
+
+    d.rectangle([MARGIN, qy - 34, MARGIN + 96, qy - 32], fill=PAL["gold"])
+
+    for kind, lines, f, col, lead, gap in blocks:
+        qy += gap
+        qy = draw_lines(d, (MARGIN, qy), lines, f, col, lead)
+
+    if spec.get("note"):
+        d.text((MARGIN, h - MARGIN - 22), spec["note"],
+               font=font("sans", 20), fill=(116, 112, 104))
+    return im
+
+
 def card_quote(spec, size=(POST_W, POST_H)):
     w, h = size
     im = Image.new("RGB", (w, h), PAL["pine"] if spec.get("ground") == "pine" else PAL["ink"])
@@ -304,6 +375,8 @@ def build_card(job_id, spec, size):
         raise FileNotFoundError("找不到原圖：%s" % src)
     if t == "cover":
         return card_cover(src, spec, size)
+    if t == "split":
+        return card_split(src, spec, size)
     return card_photo(src, spec, size)
 
 
