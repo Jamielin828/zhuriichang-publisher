@@ -174,6 +174,23 @@ def tracked(d, xy, text, f, fill, tracking):
     return x
 
 
+def draw_place(im, place, size=20, tracking=2):
+    """右下角的地點標。只有查得到地點才傳進來，查不到就不要標。"""
+    if not place:
+        return im
+    w, h = im.size
+    d = ImageDraw.Draw(im)
+    f = font("sans", size)
+    width = sum(f.getlength(c) + tracking for c in place) - tracking
+    x = w - MARGIN - width
+    y = h - 58 if h == POST_H else h - 76
+    # 先描一層暗影，壓在亮處也讀得到
+    for dx, dy in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
+        tracked(d, (x + dx, y + dy), place, f, (18, 16, 14), tracking)
+    tracked(d, (x, y), place, f, (178, 172, 160), tracking)
+    return im
+
+
 # ------------------------------------------------------------------ 卡片
 def card_cover(src, spec, size=(POST_W, POST_H)):
     w, h = size
@@ -217,6 +234,7 @@ def card_cover(src, spec, size=(POST_W, POST_H)):
         y -= (bb[3] - bb[1])
         d.text((MARGIN - bb[0], y - bb[1]), spec["big"], font=bf, fill=PAL["mist"])
 
+    draw_place(im, spec.get("place"))
     return im
 
 
@@ -225,6 +243,7 @@ def card_photo(src, spec, size=(POST_W, POST_H)):
     im = fit_crop(Image.open(src), w, h, spec.get("focus"))
     line = spec.get("line")
     if not line:
+        draw_place(im, spec.get("place"))
         return im
     im = scrim(im, spec.get("scrim", 0.5), "bottom")
     d = ImageDraw.Draw(im)
@@ -233,6 +252,7 @@ def card_photo(src, spec, size=(POST_W, POST_H)):
     lead = int(spec.get("size", 40) * 1.62)
     y = h - MARGIN - lead * len(lines)
     draw_lines(d, (MARGIN, y), lines, f, PAL["mist"], lead)
+    draw_place(im, spec.get("place"))
     return im
 
 
@@ -396,10 +416,10 @@ manifest 裡每個 job 可以加一個 "render"：
   "cards": [
     {"type":"cover","src":"yasaka.jpg","focus":[0.5,0.4],"scrim":0.62,
      "eyebrow":"築日常","big":"接","big_en":"joint","big_size":190,
-     "title":"不承重的那根柱子","sub":"五重塔的心柱"},
+     "title":"不承重的那根柱子","sub":"五重塔的心柱","place":"京都 八坂之塔"},
 
     {"type":"photo","src":"roofs.jpg","focus":[0.5,0.5],
-     "line":"最早，它深深埋進地裡","size":40,"scrim":0.5},
+     "line":"最早，它深深埋進地裡","size":40,"scrim":0.5,"place":"京都"},
 
     {"type":"photo","src":"eaves.jpg"},
 
@@ -417,5 +437,6 @@ manifest 裡每個 job 可以加一個 "render"：
 
 - src 指的是 source/<job_id>/ 底下的檔名，由 publish.py fetch 從 Drive 下載。
 - focus [x,y] 都是 0..1，決定裁切時保留畫面的哪個部分。0.5,0.4 = 稍微偏上。
+- place 是右下角的地點標。**只有查得到地點才寫**，查不到就不要放這個欄位——寧可不標，也不要標錯。
 - 算完之後 job["instagram"]["images"] 會被改寫成算出來的檔名，發布時用這些。
 """
