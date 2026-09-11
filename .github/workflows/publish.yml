@@ -52,7 +52,11 @@ jobs:
           fi
           git config user.name  "zhuriichang-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add media published 2>/dev/null || true
+          # 分開加：git add 只要有一個路徑對不上就整條失敗，
+          # published/ 在第一次發布前並不存在。
+          git add media 2>/dev/null || true
+          git add published 2>/dev/null || true
+          git status --short
           if git diff --cached --quiet; then
             echo "沒有新成品需要 commit。"
           else
