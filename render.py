@@ -17,11 +17,12 @@ Claude 只寫「版面規格」，實際的裁切、壓字、合成影片都在�
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 
 POST_W, POST_H = 1080, 1350      # 4:5
 REEL_W, REEL_H = 1080, 1920      # 9:16
@@ -129,30 +130,57 @@ def scrim(im, strength=0.55, direction="bottom"):
 
 
 # ------------------------------------------------------------------ 文字
-def wrap_cjk(text, f, maxw):
-    """逐字排版並做基本禁則處理。"""
-    no_start = "，。、；：！？）」』】’”%》"
-    no_end = "（「『【‘“《"
-    lines, cur = [], ""
+_LATIN = re.compile(r"[A-Za-zÀ-ÿ0-9’'\-]")
+
+
+def _tokens(text):
+    """把字串切成排版單位：CJK 逐字，拉丁文整個單字不拆。"""
+    out, buf = [], ""
     for ch in text:
-        if ch == "\n":
+        if _LATIN.match(ch):
+            buf += ch
+            continue
+        if buf:
+            out.append(buf)
+            buf = ""
+        out.append(ch)
+    if buf:
+        out.append(buf)
+    return out
+
+
+def wrap_cjk(text, f, maxw):
+    """逐字排版並做基本禁則處理；拉丁文以單字為單位，不會斷在字中間。"""
+    no_start = "，。、；：！？）」』】’”%》.,;:!?)"
+    no_end = "（「『【‘“《("
+    lines, cur = [], ""
+    for tok in _tokens(text):
+        if tok == "\n":
             lines.append(cur)
             cur = ""
             continue
-        trial = cur + ch
+        trial = cur + tok
         if f.getlength(trial) <= maxw or not cur:
             cur = trial
+        elif len(tok) > 1 and f.getlength(tok) > maxw:
+            # 單字本身就比一行還長，只能硬斷
+            for ch in tok:
+                if f.getlength(cur + ch) <= maxw or not cur:
+                    cur += ch
+                else:
+                    lines.append(cur)
+                    cur = ch
         else:
-            if ch in no_start and cur:
-                cur += ch
+            if tok in no_start and cur:
+                cur += tok
                 lines.append(cur)
                 cur = ""
             elif cur and cur[-1] in no_end:
                 lines.append(cur[:-1])
-                cur = cur[-1] + ch
+                cur = cur[-1] + tok
             else:
-                lines.append(cur)
-                cur = ch
+                lines.append(cur.rstrip())
+                cur = "" if tok == " " else tok
     if cur:
         lines.append(cur)
     return lines
@@ -200,16 +228,36 @@ def draw_place(im, place, size=19, tracking=2, bottom=None):
     return im
 
 
+
+def tone(im, spec):
+    """統一的照片調性處理：desat 壓飽和、bright 調亮度。
+
+    品牌調性是低飽和暗調，彩度太高的原圖用 desat 拉回來。
+    desat 0 = 原圖，1 = 全黑白；預設 0.25 輕微壓一點。
+    """
+    d = spec.get("desat", 0.25)
+    if d:
+        im = ImageEnhance.Color(im).enhance(max(0.0, 1.0 - float(d)))
+    b = spec.get("bright")
+    if b:
+        im = ImageEnhance.Brightness(im).enhance(float(b))
+    return im
+
+
 # ------------------------------------------------------------------ 卡片
 def card_cover(src, spec, size=(POST_W, POST_H)):
     w, h = size
-    im = fit_crop(Image.open(src), w, h, spec.get("focus"))
+    im = tone(fit_crop(Image.open(src), w, h, spec.get("focus")), spec)
     im = scrim(im, spec.get("scrim", 0.6), "bottom")
     d = ImageDraw.Draw(im)
 
     if spec.get("eyebrow"):
-        tracked(d, (MARGIN, MARGIN), spec["eyebrow"],
-                font("sans", 22), PAL["gold_lt"], 7)
+        ef = font("sans", 22)
+        # 先描一層暗影，壓在亮處也讀得到
+        for dx, dy in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
+            tracked(d, (MARGIN + dx, MARGIN + dy), spec["eyebrow"],
+                    ef, (18, 16, 14), 7)
+        tracked(d, (MARGIN, MARGIN), spec["eyebrow"], ef, PAL["gold_lt"], 7)
 
     # 由下往上疊，每一塊都用實際的墨水範圍量高度，避免互相壓到
     y = h - MARGIN
@@ -249,7 +297,7 @@ def card_cover(src, spec, size=(POST_W, POST_H)):
 
 def card_photo(src, spec, size=(POST_W, POST_H)):
     w, h = size
-    im = fit_crop(Image.open(src), w, h, spec.get("focus"))
+    im = tone(fit_crop(Image.open(src), w, h, spec.get("focus")), spec)
     line = spec.get("line")
     if not line:
         draw_place(im, spec.get("place"))
@@ -275,7 +323,7 @@ def card_split(src, spec, size=(POST_W, POST_H)):
     ph = int(h * ratio)
 
     im = Image.new("RGB", (w, h), PAL["ink"])
-    photo = fit_crop(Image.open(src), w, ph, spec.get("focus"))
+    photo = tone(fit_crop(Image.open(src), w, ph, spec.get("focus")), spec)
     photo = scrim(photo, spec.get("scrim", 0.35), "bottom")
     im.paste(photo, (0, 0))
     draw_place(im, spec.get("place"), bottom=ph - 40)
