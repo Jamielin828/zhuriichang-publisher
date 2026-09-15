@@ -1,3 +1,6 @@
 {"id": "2026-09-11T1610_live", "status": "platform_published", "platform": "instagram", "post_id": "18393154195202190", "at": "2026-09-11T16:13:48.448432+08:00"}
 {"id": "2026-09-11T1610_live", "status": "platform_published", "platform": "threads", "post_id": "18123764206882681", "at": "2026-09-11T16:14:28.545035+08:00"}
 {"id": "2026-09-11T1610_live", "status": "published", "publish_at": "2026-09-11T16:10:00+08:00", "platforms": ["instagram", "threads"], "results": {"instagram": "18393154195202190", "threads": "18123764206882681"}, "at": "2026-09-11T16:14:28.545158+08:00"}
+{"id": "2026-09-13_kaijo", "status": "platform_published", "platform": "instagram", "post_id": "17893948833655705", "at": "2026-09-15T11:06:54.167875+08:00"}
+{"id": "2026-09-13_kaijo", "status": "platform_published", "platform": "threads", "post_id": "17975745389924671", "at": "2026-09-15T11:07:44.114972+08:00"}
+{"id": "2026-09-13_kaijo", "status": "published", "publish_at": "2026-09-15T11:00:00+08:00", "platforms": ["instagram", "threads"], "results": {"instagram": "17893948833655705", "threads": "17975745389924671"}, "at": "2026-09-15T11:07:44.115091+08:00"}
