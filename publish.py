@@ -240,8 +240,12 @@ def cmd_fetch():
             if os.path.exists(path) and os.path.getsize(path) > 0:
                 print("  已有 %s" % path)
                 continue
-            print("  下載 %s ← Drive %s" % (path, item["drive_id"]))
-            data = drive_get(item["drive_id"])
+                        if item.get("url"):
+                print("  下載 %s ← %s" % (path, item["url"]))
+                data = http(item["url"], timeout=120, raw=True)
+            else:
+                print("  下載 %s ← Drive %s" % (path, item["drive_id"]))
+                data = drive_get(item["drive_id"])
             with open(path, "wb") as f:
                 f.write(data)
             print("       %d bytes" % len(data))
@@ -260,7 +264,7 @@ def media_items(job):
     """
     render = job.get("render")
     if render:
-        return [s for s in render.get("sources", []) if s.get("drive_id")]
+        return [s for s in render.get("sources", []) if s.get("drive_id")or s.get("url")]
     out = []
     ig = job.get("instagram") or {}
     out.extend(ig.get("images", []))
