@@ -240,7 +240,7 @@ def cmd_fetch():
             if os.path.exists(path) and os.path.getsize(path) > 0:
                 print("  已有 %s" % path)
                 continue
-                        if item.get("url"):
+            if item.get("url"):
                 print("  下載 %s ← %s" % (path, item["url"]))
                 data = http(item["url"], timeout=120, raw=True)
             else:
