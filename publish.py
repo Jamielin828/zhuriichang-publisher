@@ -165,7 +165,34 @@ def drive_get(file_id, timeout=120):
     return body
 
 
+def newest_manifest_in(folder_id):
+    """從公開資料夾挑出名字最大的 manifest-*.json。"""
+    import re
+    url = ("https://drive.google.com/embeddedfolderview?id="
+           + urllib.parse.quote(folder_id) + "#list")
+    html = http(url, timeout=60, raw=True).decode("utf-8", "replace")
+    found = {}
+    for m in re.finditer(
+            r'id="entry-([A-Za-z0-9_-]{20,})".*?flip-entry-title">([^<]+)<',
+            html, re.S):
+        found[m.group(2).strip()] = m.group(1)
+    names = [n for n in found
+             if n.startswith("manifest-") and n.endswith(".json")]
+    if not names:
+        return None
+    return found[sorted(names)[-1]]
+
 def load_manifest():
+    folder = os.environ.get("MANIFEST_FOLDER_ID")
+    if folder:
+        try:
+            fid = newest_manifest_in(folder)
+            if fid:
+                print("manifest ← 資料夾裡最新的 %s" % fid)
+                return json.loads(drive_get(fid, timeout=60).decode("utf-8"))
+            print("資料夾裡沒有 manifest-*.json，改用 MANIFEST_FILE_ID")
+        except Exception as e:
+            print("資料夾讀取失敗（%s），改用 MANIFEST_FILE_ID" % e)
     fid = need("MANIFEST_FILE_ID")
     body = drive_get(fid, timeout=60)
     try:
