@@ -76,3 +76,5 @@
 {"id": "2026-09-30_teak", "status": "platform_published", "platform": "instagram", "post_id": "18133034527670302", "at": "2026-09-30T08:08:40.306684+08:00"}
 {"id": "2026-09-30_teak", "status": "platform_published", "platform": "threads", "post_id": "18107069669203567", "at": "2026-09-30T08:09:28.005117+08:00"}
 {"id": "2026-09-30_teak", "status": "published", "publish_at": "2026-09-30T08:00:00+08:00", "platforms": ["instagram", "threads"], "results": {"instagram": "18133034527670302", "threads": "18107069669203567"}, "at": "2026-09-30T08:09:28.005249+08:00"}
+{"id": "2026-09-30_teak_reels", "status": "platform_published", "platform": "instagram", "post_id": "18382424932224892", "at": "2026-09-30T20:37:45.432195+08:00"}
+{"id": "2026-09-30_teak_reels", "status": "published", "publish_at": "2026-09-30T20:30:00+08:00", "platforms": ["instagram"], "results": {"instagram": "18382424932224892"}, "at": "2026-09-30T20:37:45.432326+08:00"}
