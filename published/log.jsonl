@@ -73,3 +73,6 @@
 {"id": "2026-09-29_indigo", "status": "published", "publish_at": "2026-09-29T16:00:00+08:00", "platforms": ["instagram", "threads"], "results": {"instagram": "18101997734632069", "threads": "18243910678311725"}, "at": "2026-09-29T22:12:23.799894+08:00"}
 {"id": "2026-09-29_indigo_reels", "status": "platform_published", "platform": "instagram", "post_id": "18012032501980993", "at": "2026-09-29T22:13:00.365348+08:00"}
 {"id": "2026-09-29_indigo_reels", "status": "published", "publish_at": "2026-09-29T20:30:00+08:00", "platforms": ["instagram"], "results": {"instagram": "18012032501980993"}, "at": "2026-09-29T22:13:00.365543+08:00"}
+{"id": "2026-09-30_teak", "status": "platform_published", "platform": "instagram", "post_id": "18133034527670302", "at": "2026-09-30T08:08:40.306684+08:00"}
+{"id": "2026-09-30_teak", "status": "platform_published", "platform": "threads", "post_id": "18107069669203567", "at": "2026-09-30T08:09:28.005117+08:00"}
+{"id": "2026-09-30_teak", "status": "published", "publish_at": "2026-09-30T08:00:00+08:00", "platforms": ["instagram", "threads"], "results": {"instagram": "18133034527670302", "threads": "18107069669203567"}, "at": "2026-09-30T08:09:28.005249+08:00"}
