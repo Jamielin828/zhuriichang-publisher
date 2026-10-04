@@ -88,3 +88,6 @@
 {"id": "2026-10-03_parabaik", "status": "published", "publish_at": "2026-10-03T08:00:00+08:00", "platforms": ["instagram", "threads"], "results": {"instagram": "18147020242492734", "threads": "18208535161317105"}, "at": "2026-10-03T08:08:40.640432+08:00"}
 {"id": "2026-10-03_parabaik_reels", "status": "platform_published", "platform": "instagram", "post_id": "18081413138512166", "at": "2026-10-03T23:01:36.789802+08:00"}
 {"id": "2026-10-03_parabaik_reels", "status": "published", "publish_at": "2026-10-03T20:30:00+08:00", "platforms": ["instagram"], "results": {"instagram": "18081413138512166"}, "at": "2026-10-03T23:01:36.789939+08:00"}
+{"id": "2026-10-04_darkness", "status": "platform_published", "platform": "instagram", "post_id": "18219480928344459", "at": "2026-10-04T10:26:52.539126+08:00"}
+{"id": "2026-10-04_darkness", "status": "platform_published", "platform": "threads", "post_id": "17909253831579211", "at": "2026-10-04T10:27:38.275995+08:00"}
+{"id": "2026-10-04_darkness", "status": "published", "publish_at": "2026-10-04T08:00:00+08:00", "platforms": ["instagram", "threads"], "results": {"instagram": "18219480928344459", "threads": "17909253831579211"}, "at": "2026-10-04T10:27:38.276089+08:00"}
