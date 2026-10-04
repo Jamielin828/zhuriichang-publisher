@@ -91,3 +91,5 @@
 {"id": "2026-10-04_darkness", "status": "platform_published", "platform": "instagram", "post_id": "18219480928344459", "at": "2026-10-04T10:26:52.539126+08:00"}
 {"id": "2026-10-04_darkness", "status": "platform_published", "platform": "threads", "post_id": "17909253831579211", "at": "2026-10-04T10:27:38.275995+08:00"}
 {"id": "2026-10-04_darkness", "status": "published", "publish_at": "2026-10-04T08:00:00+08:00", "platforms": ["instagram", "threads"], "results": {"instagram": "18219480928344459", "threads": "17909253831579211"}, "at": "2026-10-04T10:27:38.276089+08:00"}
+{"id": "2026-10-04_darkness_reels", "status": "platform_published", "platform": "instagram", "post_id": "18108800615186979", "at": "2026-10-05T01:17:48.803983+08:00"}
+{"id": "2026-10-04_darkness_reels", "status": "published", "publish_at": "2026-10-04T20:30:00+08:00", "platforms": ["instagram"], "results": {"instagram": "18108800615186979"}, "at": "2026-10-05T01:17:48.804112+08:00"}
