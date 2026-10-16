@@ -62,7 +62,17 @@ jobs:
             echo "沒有新成品需要 commit。"
           else
             git commit -m "render: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            git push
+            n=0
+            until git push; do
+              n=$((n + 1))
+              if [ "$n" -ge 4 ]; then
+                echo "push 連續 4 次失敗，放棄。"
+                exit 1
+              fi
+              echo "push 被拒（第 $n 次），先 pull --rebase 再重試"
+              git pull --rebase --autostash || true
+              sleep 5
+            done
           fi
 
       - name: 發布
@@ -89,6 +99,15 @@ jobs:
             echo "沒有新紀錄。"
           else
             git commit -m "log: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            git pull --rebase --autostash || true
-            git push
+            n=0
+            until git push; do
+              n=$((n + 1))
+              if [ "$n" -ge 4 ]; then
+                echo "push 連續 4 次失敗，放棄。"
+                exit 1
+              fi
+              echo "push 被拒（第 $n 次），先 pull --rebase 再重試"
+              git pull --rebase --autostash || true
+              sleep 5
+            done
           fi
