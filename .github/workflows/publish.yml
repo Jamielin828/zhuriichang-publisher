@@ -30,6 +30,7 @@ jobs:
       - name: 從 Drive 抓到期任務的原圖
         env:
           MANIFEST_FILE_ID: ${{ vars.MANIFEST_FILE_ID }}
+          MANIFEST_FOLDER_ID: ${{ vars.MANIFEST_FOLDER_ID }}
           MEDIA_BASE_URL: ${{ vars.MEDIA_BASE_URL }}
         run: python publish.py fetch
 
@@ -68,6 +69,7 @@ jobs:
         if: hashFiles('.pending.json') != ''
         env:
           MANIFEST_FILE_ID: ${{ vars.MANIFEST_FILE_ID }}
+          MANIFEST_FOLDER_ID: ${{ vars.MANIFEST_FOLDER_ID }}
           MEDIA_BASE_URL: ${{ vars.MEDIA_BASE_URL }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
